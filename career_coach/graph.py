@@ -2,36 +2,24 @@
 
 from __future__ import annotations
 
-import os
-from functools import lru_cache
 from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from career_coach.model_provider import get_model
 from career_coach.prompts import FINALIZER_PROMPT, SYSTEM_PROMPT
 from career_coach.schemas import CareerRoadmap, LearnerProfile
 from career_coach.state import CareerCoachState
 from career_coach.tools import TOOLS
 
 
-@lru_cache(maxsize=1)
-def _model() -> ChatGoogleGenerativeAI:
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-    return ChatGoogleGenerativeAI(
-        model=model_name,
-        temperature=1.0,
-        max_retries=2,
-    )
-
-
 def _agent_node(state: CareerCoachState) -> dict:
     """Let the model reason over state and choose whether to call a tool."""
 
-    model_with_tools = _model().bind_tools(TOOLS)
+    model_with_tools = get_model().bind_tools(TOOLS)
     profile = state.get("learner_profile", {})
     profile_context = (
         "Learner profile supplied by the product UI:\n"
@@ -57,11 +45,8 @@ def _route_after_agent(state: CareerCoachState) -> Literal["tools", "finalize"]:
 def _finalize_node(state: CareerCoachState) -> dict:
     """Turn the completed agent run into a typed product contract for the UI."""
 
-    structured_model = _model().with_structured_output(
-        schema=CareerRoadmap.model_json_schema(),
-        method="json_schema",
-    )
-    response = structured_model.invoke(
+    structured_model = get_model().with_structured_output(CareerRoadmap)
+    roadmap = structured_model.invoke(
         [
             SystemMessage(content=SYSTEM_PROMPT),
             SystemMessage(content=FINALIZER_PROMPT),
@@ -69,7 +54,6 @@ def _finalize_node(state: CareerCoachState) -> dict:
             *state.get("messages", []),
         ]
     )
-    roadmap = CareerRoadmap.model_validate(response)
     return {
         "final_roadmap": roadmap.model_dump(),
         "llm_calls": state.get("llm_calls", 0) + 1,
