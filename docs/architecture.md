@@ -6,11 +6,23 @@
 flowchart LR
     U[Learner] --> UI[Streamlit UI]
     UI --> G[LangGraph Career Coach]
-    G --> M[Gemini]
+    G --> M[NVIDIA Nemotron 3 Ultra]
     G --> RB[Role Blueprint Tool]
     G --> LC[Learning Capacity Tool]
     G --> C[(In-memory Checkpointer)]
     G --> UI
+```
+
+## Model-provider boundary
+
+The LangGraph orchestration does not import an NVIDIA-specific SDK. `model_provider.py` configures a LangChain `ChatOpenAI` client against NVIDIA's OpenAI-compatible NIM endpoint. This keeps provider concerns separate from graph state, nodes, tools, routing, and product schemas.
+
+Default configuration:
+
+```text
+model    = nvidia/nemotron-3-ultra-550b-a55b
+base_url = https://integrate.api.nvidia.com/v1
+key      = NVIDIA_API_KEY
 ```
 
 ## Agent graph
@@ -30,7 +42,7 @@ flowchart TD
 |---|---|
 | What is state? | learner profile, message/tool history, LLM call count, final roadmap |
 | Why a graph? | the model can request tools and loop after observations before finishing |
-| Who makes judgement? | Gemini inside the `career_agent` node |
+| Who makes judgement? | NVIDIA Nemotron inside the `career_agent` node |
 | When is code deterministic? | role lookup, capacity calculation, validation, rendering |
 | Where does LangGraph sit? | between Streamlit and model/tools |
 | How does agency happen? | model chooses a tool call; application executes it; observation returns to model |
@@ -64,4 +76,4 @@ V0.1 uses `InMemorySaver` for thread-level checkpointing. This demonstrates stat
 - Tool exception: `ToolNode` returns an observable tool error to the model.
 - Bad final structure: Pydantic validation fails rather than silently rendering malformed data.
 - Runaway loop: invocation has a bounded recursion limit.
-- Missing API key: UI stops before invoking the agent.
+- Missing API key: provider/UI fail before invoking the live model.
