@@ -1,13 +1,13 @@
 [project]
 name = "ai-career-coach-agent"
 version = "0.1.0"
-description = "A stateful single-agent AI career coach built with LangGraph and Gemini."
+description = "A stateful single-agent AI career coach built with LangGraph and NVIDIA Nemotron."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "langgraph>=1.2.11,<2",
   "langchain>=1.4.0,<2",
-  "langchain-google-genai>=4.4.0,<5",
+  "langchain-openai>=0.3.0,<1",
   "pydantic>=2.13,<3",
   "streamlit>=1.63,<2",
   "python-dotenv>=1.0",
