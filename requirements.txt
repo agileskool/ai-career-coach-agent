@@ -1,6 +1,6 @@
 langgraph>=1.2.11,<2
 langchain>=1.4.0,<2
-langchain-openai>=0.3.0,<1
+langchain-openai>=1.6.0,<2
 pydantic>=2.13,<3
 streamlit>=1.63,<2
 python-dotenv>=1.0
