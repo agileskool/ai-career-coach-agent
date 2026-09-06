@@ -8,8 +8,8 @@ from career_coach.schemas import LearnerProfile
 
 
 @pytest.mark.skipif(
-    not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
-    reason="Live Gemini integration test requires an API key",
+    not os.getenv("NVIDIA_API_KEY"),
+    reason="Live NVIDIA Nemotron integration test requires NVIDIA_API_KEY",
 )
 def test_live_agent_returns_structured_roadmap():
     profile = LearnerProfile(
