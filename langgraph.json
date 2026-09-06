@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "career_coach": "./career_coach/graph.py:career_coach_graph"
+  },
+  "env": ".env"
+}

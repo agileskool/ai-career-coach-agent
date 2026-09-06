@@ -1,0 +1,38 @@
+{
+  "AI Product Manager": {
+    "positioning": "Owns AI product outcomes, problem framing, experimentation, evaluation, risk, adoption, and cross-functional execution.",
+    "competencies": {
+      "product": ["AI use-case discovery", "problem framing", "product strategy", "AI metrics and evaluation", "experimentation"],
+      "technical_literacy": ["LLM fundamentals", "prompting", "RAG", "agentic systems", "APIs", "AI evaluation"],
+      "delivery_and_risk": ["AI lifecycle", "human-in-the-loop design", "guardrails", "data/privacy awareness", "monitoring"],
+      "evidence": ["AI product PRD", "evaluation plan", "working AI prototype", "portfolio case study"]
+    }
+  },
+  "GenAI Engineer": {
+    "positioning": "Builds production GenAI applications that combine models, retrieval, tools, evaluation, APIs, and deployment.",
+    "competencies": {
+      "engineering": ["Python", "Git", "REST APIs", "testing", "FastAPI"],
+      "genai": ["LLM APIs", "prompt engineering", "structured output", "RAG", "tool calling", "agents"],
+      "production": ["evaluation", "observability", "security basics", "deployment", "cost/latency trade-offs"],
+      "evidence": ["LLM API app", "RAG project", "tool-using agent", "deployed portfolio project"]
+    }
+  },
+  "AI Engineer": {
+    "positioning": "Builds and operationalizes AI systems using software engineering, ML/GenAI components, APIs, evaluation, and deployment.",
+    "competencies": {
+      "engineering": ["Python", "data structures", "Git", "APIs", "testing"],
+      "ai_ml": ["ML fundamentals", "data preparation", "model evaluation", "LLM fundamentals", "RAG", "agents"],
+      "production": ["FastAPI", "containers", "cloud deployment", "monitoring", "security basics"],
+      "evidence": ["ML project", "GenAI application", "API service", "deployed end-to-end project"]
+    }
+  },
+  "AI Solution Architect": {
+    "positioning": "Designs enterprise AI solutions across data, models, integration, security, governance, reliability, and business outcomes.",
+    "competencies": {
+      "architecture": ["solution decomposition", "integration patterns", "API architecture", "data architecture", "cloud architecture"],
+      "genai": ["LLM platforms", "RAG architecture", "agent architecture", "evaluation", "model/tool selection"],
+      "enterprise": ["security", "privacy", "governance", "observability", "cost and scalability", "human oversight"],
+      "evidence": ["reference architecture", "architecture decision records", "working technical spike", "enterprise case study"]
+    }
+  }
+}
