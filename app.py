@@ -9,6 +9,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from career_coach.graph import assess_learner
+from career_coach.model_provider import DEFAULT_MODEL
 from career_coach.presentation import build_execution_trace
 from career_coach.schemas import CareerRoadmap, LearnerProfile
 
@@ -26,10 +27,10 @@ with st.sidebar:
     st.subheader("Agent architecture")
     st.markdown(
         "**LangGraph** manages state and routing.  \n"
-        "**Gemini** performs judgement.  \n"
+        "**NVIDIA Nemotron** performs judgement.  \n"
         "**Tools** provide deterministic role/capacity data."
     )
-    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    model = os.getenv("NVIDIA_MODEL", DEFAULT_MODEL)
     st.caption(f"Model: {model}")
 
 with st.form("career_assessment"):
@@ -44,8 +45,8 @@ with st.form("career_assessment"):
         ai_experience = st.text_area(
             "Current AI experience",
             value=(
-                "Uses ChatGPT and Gemini; understands basic GenAI concepts "
-                "but limited hands-on coding."
+                "Uses general-purpose GenAI assistants; understands basic GenAI concepts "
+                "but has limited hands-on agent engineering."
             ),
         )
         target_market = st.text_input("Target market", value="US / Global")
@@ -69,8 +70,8 @@ with st.form("career_assessment"):
     submitted = st.form_submit_button("Run agent assessment", type="primary")
 
 if submitted:
-    if not os.getenv("GEMINI_API_KEY") and not os.getenv("GOOGLE_API_KEY"):
-        st.error("Set GEMINI_API_KEY (or GOOGLE_API_KEY) before running the live agent.")
+    if not os.getenv("NVIDIA_API_KEY"):
+        st.error("Set NVIDIA_API_KEY before running the live agent.")
         st.stop()
 
     profile = LearnerProfile(
