@@ -6,7 +6,7 @@ A showcase-quality **single AI agent** that assesses a learner's current experie
 
 ## Why this project exists
 
-General-purpose assistants can already generate career advice. CareerPilot's V1 demonstrates the engineering foundations required to turn that capability into a controlled product: **state, tool calling, agent routing, typed output, evaluation, observability-ready execution, UI, tests, and deployment structure**.
+General-purpose assistants can already generate career advice. CareerPilot's V1 demonstrates the engineering foundations required to turn that capability into a controlled product: **state, tool calling, agent routing, typed output, evaluation, observable execution, UI, tests, and deployment structure**.
 
 The longer-term product direction is continuous career-state management: learner progress, evidence validation, resume/job-market inputs, adaptive reassessment, and eventually multi-agent specialization.
 
@@ -15,7 +15,7 @@ The longer-term product direction is continuous career-state management: learner
 ```mermaid
 flowchart TD
     UI[Streamlit assessment UI] --> S[LangGraph state]
-    S --> A[Career Coach agent / Gemini]
+    S --> A[Career Coach agent / NVIDIA Nemotron]
     A -->|needs target-role evidence| T1[get_role_blueprint tool]
     A -->|needs capacity evidence| T2[calculate_learning_capacity tool]
     T1 --> A
@@ -28,13 +28,29 @@ The core loop is:
 
 **Reason -> request tool -> execute tool -> observe result -> reason again -> finish**
 
-LangGraph manages state and routing; Gemini provides judgement; Python tools provide deterministic capabilities.
+LangGraph manages state and routing; NVIDIA Nemotron provides model judgement; Python tools provide deterministic capabilities.
+
+## Model provider
+
+The default hosted model is:
+
+```text
+nvidia/nemotron-3-ultra-550b-a55b
+```
+
+It is accessed through NVIDIA's OpenAI-compatible NIM endpoint:
+
+```text
+https://integrate.api.nvidia.com/v1
+```
+
+The graph itself is provider-neutral. `career_coach/model_provider.py` isolates model configuration so another OpenAI-compatible model provider can be substituted without redesigning state, tools, routing, or schemas.
 
 ## V1 capabilities
 
 - Structured learner assessment via Streamlit
 - Single-agent LangGraph state machine
-- Gemini tool calling
+- NVIDIA Nemotron tool calling through an OpenAI-compatible endpoint
 - Internal target-role competency blueprint tool
 - Deterministic learning-capacity tool
 - Conditional loop between model and tools
@@ -61,12 +77,13 @@ Those are planned evolutions, not hidden behind a demo prompt.
 .
 ├── app.py
 ├── career_coach/
-│   ├── graph.py          # LangGraph nodes, edges, agent loop
-│   ├── state.py          # shared agent state
-│   ├── tools.py          # deterministic agent tools
-│   ├── schemas.py        # learner + roadmap product contracts
-│   ├── prompts.py        # agent policy
-│   └── presentation.py   # safe execution trace for UI
+│   ├── graph.py            # LangGraph nodes, edges, agent loop
+│   ├── model_provider.py   # NVIDIA/OpenAI-compatible provider adapter
+│   ├── state.py            # shared agent state
+│   ├── tools.py            # deterministic agent tools
+│   ├── schemas.py          # learner + roadmap product contracts
+│   ├── prompts.py          # agent policy
+│   └── presentation.py     # safe execution trace for UI
 ├── data/
 │   └── role_blueprints.json
 ├── tests/
@@ -78,25 +95,41 @@ Those are planned evolutions, not hidden behind a demo prompt.
 
 ## Run locally
 
-### 1. Create an environment
+### 1. Clone and create an environment
 
 ```bash
+git clone https://github.com/agileskool/ai-career-coach-agent.git
+cd ai-career-coach-agent
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+```
+
+Activate it:
+
+```bash
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -e ".[dev]"
 ```
 
-### 2. Configure Gemini
+### 2. Configure NVIDIA
 
-```bash
-cp .env.example .env
-```
-
-Add your key:
+Copy `.env.example` to `.env` and add your key:
 
 ```text
-GEMINI_API_KEY=...
+NVIDIA_API_KEY=...
+NVIDIA_MODEL=nvidia/nemotron-3-ultra-550b-a55b
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 ```
+
+Do not commit `.env` or your API key.
 
 ### 3. Run tests
 
@@ -128,6 +161,10 @@ The application does not hard-code every intelligence step. The Career Coach mod
 - **AI judgement:** transferable skills, gap prioritization, pathway design, feasibility interpretation
 - **Deterministic code/tools:** role blueprint retrieval, learning-hour calculation, schema validation, UI rendering
 
+### Why NVIDIA Nemotron 3 Ultra?
+
+The project uses NVIDIA's hosted Nemotron 3 Ultra endpoint as the initial reasoning model because it is explicitly positioned for agentic reasoning, planning and tool use. The architecture does not depend on NVIDIA-specific graph logic; the model sits behind a provider adapter.
+
 ### How would this evolve to production?
 
 1. Replace in-memory checkpointing with Postgres.
@@ -144,13 +181,9 @@ The product distinguishes **claimed**, **learned**, and **demonstrated** capabil
 
 ## Deployment
 
-### Streamlit Community Cloud
+For a simple showcase deployment, deploy `app.py` on Streamlit Community Cloud and configure `NVIDIA_API_KEY` as a secret/environment variable. Never place the key in the repository.
 
-Push this repository to GitHub, create a Streamlit app using `app.py`, and add `GEMINI_API_KEY` in Streamlit secrets/environment configuration.
-
-### LangSmith / LangGraph deployment
-
-`langgraph.json` exposes the graph as `career_coach`, allowing the repository to be deployed using LangGraph-compatible deployment infrastructure later.
+`langgraph.json` also exposes the graph as `career_coach`, leaving room for LangGraph-compatible deployment infrastructure later.
 
 ## Roadmap
 
