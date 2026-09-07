@@ -6,7 +6,7 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ _DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "careerpilot.db"
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class CareerRepository:
@@ -80,7 +80,10 @@ class CareerRepository:
                 (learner_id, now, now),
             )
             connection.execute(
-                "INSERT INTO learner_profiles (learner_id, profile_json, created_at) VALUES (?, ?, ?)",
+                (
+                    "INSERT INTO learner_profiles "
+                    "(learner_id, profile_json, created_at) VALUES (?, ?, ?)"
+                ),
                 (learner_id, profile.model_dump_json(), now),
             )
         return learner_id
@@ -99,7 +102,10 @@ class CareerRepository:
         now = _utc_now()
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO learner_profiles (learner_id, profile_json, created_at) VALUES (?, ?, ?)",
+                (
+                    "INSERT INTO learner_profiles "
+                    "(learner_id, profile_json, created_at) VALUES (?, ?, ?)"
+                ),
                 (learner_id, profile.model_dump_json(), now),
             )
             connection.execute(
@@ -163,7 +169,10 @@ class CareerRepository:
         now = _utc_now()
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO progress_updates (learner_id, update_text, created_at) VALUES (?, ?, ?)",
+                (
+                    "INSERT INTO progress_updates "
+                    "(learner_id, update_text, created_at) VALUES (?, ?, ?)"
+                ),
                 (learner_id, cleaned, now),
             )
             connection.execute(
