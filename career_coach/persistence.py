@@ -146,6 +146,52 @@ class CareerRepository:
                 (now, learner_id),
             )
 
+    def save_reassessment(
+        self,
+        learner_id: str,
+        update_text: str,
+        roadmap: dict[str, Any],
+        llm_calls: int,
+    ) -> None:
+        """Persist progress and its resulting assessment in one SQLite transaction."""
+
+        cleaned = update_text.strip()
+        if not cleaned:
+            raise ValueError("Progress update cannot be empty.")
+        if not self.learner_exists(learner_id):
+            raise KeyError(f"Unknown learner_id: {learner_id}")
+
+        now = _utc_now()
+        with self._connect() as connection:
+            existing = connection.execute(
+                """
+                SELECT 1 FROM progress_updates
+                WHERE learner_id = ? AND update_text = ?
+                LIMIT 1
+                """,
+                (learner_id, cleaned),
+            ).fetchone()
+            if existing is None:
+                connection.execute(
+                    """
+                    INSERT INTO progress_updates (learner_id, update_text, created_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (learner_id, cleaned, now),
+                )
+
+            connection.execute(
+                """
+                INSERT INTO assessments (learner_id, roadmap_json, llm_calls, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (learner_id, json.dumps(roadmap), llm_calls, now),
+            )
+            connection.execute(
+                "UPDATE learners SET updated_at = ? WHERE learner_id = ?",
+                (now, learner_id),
+            )
+
     def get_latest_roadmap(self, learner_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute(
@@ -160,21 +206,39 @@ class CareerRepository:
             ).fetchone()
         return json.loads(row["roadmap_json"]) if row else None
 
-    def has_progress_update(self, learner_id: str, update_text: str) -> bool:
-        cleaned = update_text.strip()
-        if not cleaned:
-            return False
+    def get_latest_assessment_created_at(self, learner_id: str) -> str | None:
         with self._connect() as connection:
             row = connection.execute(
                 """
-                SELECT 1
+                SELECT created_at
+                FROM assessments
+                WHERE learner_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (learner_id,),
+            ).fetchone()
+        return row["created_at"] if row else None
+
+    def get_progress_update_created_at(self, learner_id: str, update_text: str) -> str | None:
+        cleaned = update_text.strip()
+        if not cleaned:
+            return None
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT created_at
                 FROM progress_updates
                 WHERE learner_id = ? AND update_text = ?
+                ORDER BY id DESC
                 LIMIT 1
                 """,
                 (learner_id, cleaned),
             ).fetchone()
-        return row is not None
+        return row["created_at"] if row else None
+
+    def has_progress_update(self, learner_id: str, update_text: str) -> bool:
+        return self.get_progress_update_created_at(learner_id, update_text) is not None
 
     def add_progress_update(self, learner_id: str, update_text: str) -> None:
         cleaned = update_text.strip()
