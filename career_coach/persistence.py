@@ -160,12 +160,33 @@ class CareerRepository:
             ).fetchone()
         return json.loads(row["roadmap_json"]) if row else None
 
+    def has_progress_update(self, learner_id: str, update_text: str) -> bool:
+        cleaned = update_text.strip()
+        if not cleaned:
+            return False
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM progress_updates
+                WHERE learner_id = ? AND update_text = ?
+                LIMIT 1
+                """,
+                (learner_id, cleaned),
+            ).fetchone()
+        return row is not None
+
     def add_progress_update(self, learner_id: str, update_text: str) -> None:
         cleaned = update_text.strip()
         if not cleaned:
             raise ValueError("Progress update cannot be empty.")
         if not self.learner_exists(learner_id):
             raise KeyError(f"Unknown learner_id: {learner_id}")
+        if self.has_progress_update(learner_id, cleaned):
+            raise ValueError(
+                "This progress update is identical to one already saved. "
+                "Add genuinely new evidence before reassessing."
+            )
         now = _utc_now()
         with self._connect() as connection:
             connection.execute(
