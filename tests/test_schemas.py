@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from career_coach.schemas import LearnerProfile
+from career_coach.schemas import LearnerProfile, ProgressUpdate
 
 
 def test_learner_profile_normalizes_skills():
@@ -28,3 +28,8 @@ def test_learner_profile_rejects_zero_learning_hours():
             target_months=6,
             hours_per_week=0,
         )
+
+
+def test_progress_update_rejects_empty_text():
+    with pytest.raises(ValidationError):
+        ProgressUpdate(update_text="  ")
