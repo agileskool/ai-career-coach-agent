@@ -168,12 +168,15 @@ with returning_tab:
     ).strip()
 
     if st.button("Load saved career state"):
-        context = load_learner_context(learner_id) if learner_id else None
-        if context is None:
-            st.error("Learner ID not found.")
+        if not learner_id:
+            st.error("Enter a learner ID first.")
         else:
-            st.session_state["loaded_context"] = context
-            st.session_state["loaded_context_id"] = learner_id
+            context = load_learner_context(learner_id)
+            if context is None:
+                st.error("Learner ID not found.")
+            else:
+                st.session_state["loaded_context"] = context
+                st.session_state["loaded_context_id"] = learner_id
 
     loaded_context = None
     if st.session_state.get("loaded_context_id") == learner_id:
