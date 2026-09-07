@@ -14,7 +14,7 @@ from career_coach.model_provider import get_model
 from career_coach.prompts import FINALIZER_PROMPT, SYSTEM_PROMPT
 from career_coach.schemas import CareerRoadmap, LearnerProfile
 from career_coach.state import CareerCoachState
-from career_coach.tools import TOOLS
+from career_coach.tools import TOOLS, calculate_learning_capacity
 
 
 def _build_context(state: CareerCoachState) -> str:
@@ -67,6 +67,22 @@ def _route_after_agent(state: CareerCoachState) -> Literal["tools", "finalize"]:
     return "tools" if getattr(last_message, "tool_calls", None) else "finalize"
 
 
+def _enforce_deterministic_capacity(roadmap: CareerRoadmap, profile: dict) -> CareerRoadmap:
+    """Keep product-owned capacity numbers deterministic even if model prose drifts."""
+
+    if not profile:
+        return roadmap
+
+    capacity = calculate_learning_capacity.invoke(
+        {
+            "hours_per_week": int(profile["hours_per_week"]),
+            "target_months": int(profile["target_months"]),
+        }
+    )
+    roadmap.feasibility.available_hours = capacity["approximate_total_hours"]
+    return roadmap
+
+
 def _finalize_node(state: CareerCoachState) -> dict:
     """Turn the completed agent run into a typed product contract for the UI."""
 
@@ -79,6 +95,7 @@ def _finalize_node(state: CareerCoachState) -> dict:
             *state.get("messages", []),
         ]
     )
+    roadmap = _enforce_deterministic_capacity(roadmap, state.get("learner_profile", {}))
     return {
         "final_roadmap": roadmap.model_dump(),
         "llm_calls": state.get("llm_calls", 0) + 1,
