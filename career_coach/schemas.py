@@ -1,4 +1,4 @@
-"""Typed product contracts shared across UI, agent, and tests."""
+"""Typed product contracts shared across UI, agent, persistence, and tests."""
 
 from __future__ import annotations
 
@@ -30,6 +30,12 @@ class LearnerProfile(BaseModel):
         return cleaned
 
 
+class ProgressUpdate(BaseModel):
+    """A learner-authored progress checkpoint used for reassessment."""
+
+    update_text: str = Field(min_length=3, max_length=5000)
+
+
 class SkillGap(BaseModel):
     competency: str
     current_evidence: str
@@ -56,6 +62,7 @@ class FeasibilityAssessment(BaseModel):
 class CareerRoadmap(BaseModel):
     """Machine-readable final output rendered by the UI."""
 
+    assessment_mode: Literal["baseline", "reassessment"] = "baseline"
     executive_summary: str
     current_position: str
     target_role: str
@@ -66,3 +73,5 @@ class CareerRoadmap(BaseModel):
     first_30_days: list[str]
     evidence_plan: list[str]
     assumptions: list[str]
+    progress_summary: str | None = None
+    next_best_actions: list[str] = Field(default_factory=list)
