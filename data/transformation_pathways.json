@@ -1,0 +1,85 @@
+{
+  "principles": [
+    "Preserve and reuse credible career capital instead of restarting experienced professionals from zero.",
+    "Separate awareness from demonstrated capability; courses alone are not proof of job readiness.",
+    "Prioritize the smallest set of AI capabilities that materially changes target-role readiness.",
+    "Require evidence artifacts such as prototypes, evaluations, PRDs, architecture diagrams, or case studies.",
+    "Sequence learning so that concepts are immediately reinforced through hands-on application.",
+    "Treat interview positioning as the packaging of demonstrated capability, not a substitute for it."
+  ],
+  "pathways": {
+    "experienced_product_to_ai_product": {
+      "target_roles": ["AI Product Manager"],
+      "source_role_keywords": ["product", "business analyst", "program", "project", "delivery", "scrum", "consulting"],
+      "positioning": "Retain product, domain, stakeholder, and delivery experience; add AI product judgement, technical literacy, evaluation, and evidence.",
+      "phases": [
+        "AI/LLM technical literacy",
+        "AI use-case discovery and problem framing",
+        "RAG and agent architecture literacy",
+        "AI evaluation, experimentation, and metrics",
+        "AI lifecycle, risk, guardrails, and monitoring",
+        "One working AI product plus AI PM artifacts",
+        "Portfolio narrative and interview positioning"
+      ],
+      "anti_patterns": [
+        "Restarting with a generic beginner programming curriculum when existing product experience is strong",
+        "Collecting certificates without producing evidence",
+        "Jumping into advanced multi-agent frameworks before understanding model/tool/evaluation fundamentals"
+      ]
+    },
+    "experienced_engineer_to_ai_engineering": {
+      "target_roles": ["AI Engineer", "GenAI Engineer"],
+      "source_role_keywords": ["developer", "engineer", "software", "java", "python", "backend", "full stack"],
+      "positioning": "Reuse software-engineering discipline while closing ML/LLM application, retrieval, evaluation, and production AI gaps.",
+      "phases": [
+        "Python/data/API fluency where needed",
+        "ML and LLM fundamentals",
+        "LLM APIs and structured outputs",
+        "RAG implementation and evaluation",
+        "Tool-using agents and orchestration",
+        "Observability, testing, security, and deployment",
+        "Production-style portfolio system and interview positioning"
+      ],
+      "anti_patterns": [
+        "Treating prompt engineering alone as AI engineering",
+        "Ignoring evaluation and observability",
+        "Building notebooks only without deployable application evidence"
+      ]
+    },
+    "experienced_architect_to_ai_architecture": {
+      "target_roles": ["AI Solution Architect"],
+      "source_role_keywords": ["architect", "solution", "enterprise", "data", "bi", "cloud"],
+      "positioning": "Reuse architecture, integration, data, security, and stakeholder skills while adding LLM-system design, evaluation, and AI governance depth.",
+      "phases": [
+        "LLM and model-serving fundamentals",
+        "Enterprise RAG architecture",
+        "Agent/tool/MCP architecture patterns",
+        "Security, privacy, guardrails, and governance",
+        "Evaluation, observability, reliability, and cost",
+        "Reference architecture and production prototype",
+        "Architecture review narrative and interview positioning"
+      ],
+      "anti_patterns": [
+        "Learning frameworks without architecture trade-off understanding",
+        "Ignoring data quality and permission boundaries",
+        "Presenting diagrams without working validation or evaluation evidence"
+      ]
+    }
+  },
+  "fallback": {
+    "positioning": "Preserve credible prior experience, identify the minimum AI capability delta for the target role, and require evidence before claiming readiness.",
+    "phases": [
+      "Baseline AI literacy",
+      "Target-role technical and product gaps",
+      "Hands-on practice",
+      "Evidence-producing project",
+      "Evaluation and iteration",
+      "Interview positioning"
+    ],
+    "anti_patterns": [
+      "Generic one-size-fits-all roadmap",
+      "Course completion treated as competence",
+      "Ignoring transferable experience"
+    ]
+  }
+}

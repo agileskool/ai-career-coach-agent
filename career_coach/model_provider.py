@@ -12,7 +12,6 @@ from functools import lru_cache
 
 from langchain_openai import ChatOpenAI
 
-
 DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1"
 

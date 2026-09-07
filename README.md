@@ -1,34 +1,51 @@
-# CareerPilot AI — Stateful AI Career Coach Agent
+# CareerPilot AI — Persistent AI Career Coach Agent
 
-A showcase-quality **single AI agent** that assesses a learner's current experience against a target AI role, autonomously uses tools for role requirements and learning-capacity calculations, and returns an evidence-oriented learning roadmap.
+A showcase-quality **single AI agent** that assesses a learner's current experience against a target AI role, autonomously uses tools, preserves career state across sessions, and reassesses progress instead of generating a fresh one-shot roadmap every time.
 
-> The project is intentionally built as a real agent, not a `form -> prompt -> LLM -> text` wrapper.
+> CareerPilot is intentionally built as a real agentic product, not a `form -> prompt -> LLM -> text` wrapper.
 
 ## Why this project exists
 
-General-purpose assistants can already generate career advice. CareerPilot's V1 demonstrates the engineering foundations required to turn that capability into a controlled product: **state, tool calling, agent routing, typed output, evaluation, observable execution, UI, tests, and deployment structure**.
+General-purpose assistants can already generate career advice. CareerPilot demonstrates the engineering required to turn that capability into a controlled product: **state, tool calling, agent routing, long-term persistence, typed output, evaluation, observable execution, UI, tests, and deployment structure**.
 
-The longer-term product direction is continuous career-state management: learner progress, evidence validation, resume/job-market inputs, adaptive reassessment, and eventually multi-agent specialization.
+V0.2 moves the project beyond one-shot advice by adding persistent learner identity, saved roadmaps, progress updates, and longitudinal reassessment.
 
 ## Agent architecture
 
 ```mermaid
 flowchart TD
-    UI[Streamlit assessment UI] --> S[LangGraph state]
-    S --> A[Career Coach agent / NVIDIA Nemotron]
-    A -->|needs target-role evidence| T1[get_role_blueprint tool]
-    A -->|needs capacity evidence| T2[calculate_learning_capacity tool]
+    UI[Streamlit UI] --> SVC[Application service]
+    SVC --> DB[(SQLite long-term career state)]
+    SVC --> G[LangGraph execution]
+    G --> A[Career Coach agent / NVIDIA Nemotron]
+    A -->|role evidence| T1[get_role_blueprint]
+    A -->|capacity evidence| T2[calculate_learning_capacity]
+    A -->|CareerPilot methodology| T3[get_transformation_pathway]
     T1 --> A
     T2 --> A
+    T3 --> A
     A -->|goal complete| F[Structured roadmap finalizer]
-    F --> UI
+    F --> SVC
+    SVC --> DB
+    SVC --> UI
 ```
 
-The core loop is:
+The core agent loop is:
 
 **Reason -> request tool -> execute tool -> observe result -> reason again -> finish**
 
-LangGraph manages state and routing; NVIDIA Nemotron provides model judgement; Python tools provide deterministic capabilities.
+The longitudinal product loop is:
+
+**Assess -> save -> learner progresses -> reload saved state -> reassess -> reprioritize -> save again**
+
+## Short-term state vs long-term memory
+
+CareerPilot deliberately separates two concepts:
+
+- **LangGraph state:** working memory for one agent execution — messages, tool observations, profile context, and final roadmap.
+- **SQLite persistence:** long-term product memory across sessions — learner ID, profile history, saved assessments, and progress updates.
+
+A fresh LangGraph thread is used for each assessment/reassessment. Long-term continuity comes from explicitly loading trusted product state from SQLite into the next run.
 
 ## Model provider
 
@@ -44,32 +61,47 @@ It is accessed through NVIDIA's OpenAI-compatible NIM endpoint:
 https://integrate.api.nvidia.com/v1
 ```
 
-The graph itself is provider-neutral. `career_coach/model_provider.py` isolates model configuration so another OpenAI-compatible model provider can be substituted without redesigning state, tools, routing, or schemas.
+`career_coach/model_provider.py` isolates model configuration so another compatible provider can be substituted without redesigning the graph, tools, persistence, or schemas.
 
-## V1 capabilities
+## V0.2 capabilities
 
-- Structured learner assessment via Streamlit
+- New-learner assessment via Streamlit
+- Persistent learner ID
+- SQLite profile, roadmap, and progress history
+- Returning-learner progress update flow
+- Longitudinal reassessment using the previous roadmap + saved progress evidence
 - Single-agent LangGraph state machine
-- NVIDIA Nemotron tool calling through an OpenAI-compatible endpoint
+- NVIDIA Nemotron tool calling
 - Internal target-role competency blueprint tool
 - Deterministic learning-capacity tool
-- Conditional loop between model and tools
+- **CareerPilot transformation-methodology tool**
+- Conditional model/tool loop
 - Pydantic-validated final roadmap
-- In-memory thread checkpointing
+- Reassessment-specific `progress_summary` and `next_best_actions`
 - Observable tool-call trace without exposing hidden reasoning
 - Unit tests + optional live integration test
 - GitHub Actions CI
-- Streamlit/LangGraph deployment-ready project structure
 
-## What V1 deliberately does **not** claim
+## CareerPilot methodology
+
+The transformation-pathway tool encodes product-level principles rather than asking the model to invent the entire learning sequence from memory. Examples:
+
+- preserve credible career capital instead of restarting experienced professionals from zero,
+- separate course completion from demonstrated capability,
+- prioritize the smallest AI capability delta that changes target-role readiness,
+- require evidence artifacts such as prototypes, evaluations, PRDs, architecture diagrams, or case studies,
+- sequence learning so concepts are reinforced through hands-on application.
+
+This is an early version of the product's differentiating methodology and is expected to evolve.
+
+## What V0.2 deliberately does **not** claim
 
 - No live LinkedIn/Naukri/job-market ingestion yet
-- No Udemy progress integration yet
-- No resume repository yet
-- No long-term production database yet
+- No resume or portfolio parser yet
+- No skill-validation engine yet
+- No Udemy/course-provider progress integration yet
+- SQLite is local showcase persistence, not production multi-user infrastructure
 - No claim that completing a course proves competence
-
-Those are planned evolutions, not hidden behind a demo prompt.
 
 ## Project structure
 
@@ -77,15 +109,18 @@ Those are planned evolutions, not hidden behind a demo prompt.
 .
 ├── app.py
 ├── career_coach/
-│   ├── graph.py            # LangGraph nodes, edges, agent loop
-│   ├── model_provider.py   # NVIDIA/OpenAI-compatible provider adapter
-│   ├── state.py            # shared agent state
-│   ├── tools.py            # deterministic agent tools
-│   ├── schemas.py          # learner + roadmap product contracts
-│   ├── prompts.py          # agent policy
-│   └── presentation.py     # safe execution trace for UI
+│   ├── graph.py              # LangGraph nodes, edges, agent loop
+│   ├── service.py            # baseline/reassessment application service
+│   ├── persistence.py        # SQLite long-term learner state
+│   ├── model_provider.py     # NVIDIA/OpenAI-compatible provider adapter
+│   ├── state.py              # in-run graph state
+│   ├── tools.py              # deterministic/grounding tools
+│   ├── schemas.py            # learner + roadmap contracts
+│   ├── prompts.py            # agent policy
+│   └── presentation.py       # safe execution trace
 ├── data/
-│   └── role_blueprints.json
+│   ├── role_blueprints.json
+│   └── transformation_pathways.json
 ├── tests/
 ├── .github/workflows/ci.yml
 ├── langgraph.json
@@ -100,14 +135,14 @@ Those are planned evolutions, not hidden behind a demo prompt.
 ```bash
 git clone https://github.com/agileskool/ai-career-coach-agent.git
 cd ai-career-coach-agent
-python -m venv .venv
+py -3.13 -m venv .venv
 ```
 
 Activate it:
 
 ```bash
-# Windows
-.venv\Scripts\activate
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
 
 # macOS/Linux
 source .venv/bin/activate
@@ -116,7 +151,7 @@ source .venv/bin/activate
 Install dependencies:
 
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 ### 2. Configure NVIDIA
@@ -129,12 +164,18 @@ NVIDIA_MODEL=nvidia/nemotron-3-ultra-550b-a55b
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 ```
 
-Do not commit `.env` or your API key.
+Optional local DB override:
+
+```text
+CAREERPILOT_DB_PATH=data/careerpilot.db
+```
+
+Do not commit `.env`, API keys, or local SQLite database files.
 
 ### 3. Run tests
 
 ```bash
-pytest
+python -m pytest
 ruff check .
 ```
 
@@ -144,52 +185,51 @@ ruff check .
 streamlit run app.py
 ```
 
+## Returning-learner flow
+
+1. Run **New learner assessment**.
+2. Save the generated learner ID.
+3. Later open **Update progress / reassess**.
+4. Enter the learner ID and load saved career state.
+5. Record only what actually changed — for example, a completed project, evaluation result, or unresolved difficulty.
+6. CareerPilot loads the prior roadmap + progress history and asks the same single agent to reassess priorities.
+
 ## Interview explanation
 
 ### Why is this an agent rather than a normal LLM application?
 
-The application does not hard-code every intelligence step. The Career Coach model receives a goal, current state, and available tools. It can request a tool; the application executes it; the result is added back to state; and the model runs again to decide whether another action is needed or the goal is complete. LangGraph controls that loop and makes state/routing explicit.
+The application does not hard-code every intelligence step. The Career Coach receives a goal, current state, policies, and available tools. The model issues tool calls; LangGraph executes and routes them; observations return to the model; and the model decides whether more actions are needed or the goal is complete.
 
-### What are the LangGraph primitives here?
+### How is persistence different from LangGraph state?
 
-- **State:** learner profile, messages, tool observations, LLM-call count, final roadmap
-- **Node:** model reasoning, tool execution, final structured-output generation
-- **Edge:** START -> agent, agent -> tools/finalize, tools -> agent, finalize -> END
+LangGraph state is short-term execution context. SQLite is long-term product memory. On reassessment, CareerPilot explicitly reloads the saved learner profile, previous roadmap, and progress updates from SQLite and injects them into a new graph run. This avoids confusing model conversation history with durable business state.
 
 ### What is deterministic vs AI-driven?
 
-- **AI judgement:** transferable skills, gap prioritization, pathway design, feasibility interpretation
-- **Deterministic code/tools:** role blueprint retrieval, learning-hour calculation, schema validation, UI rendering
+- **AI judgement:** transferable skills, gap prioritization, feasibility interpretation, reassessment, pathway personalization.
+- **Deterministic/product data:** role-blueprint lookup, learning-hour calculation, transformation methodology retrieval, SQLite persistence, schema validation, UI rendering.
 
-### Why NVIDIA Nemotron 3 Ultra?
+### Why is the methodology a tool?
 
-The project uses NVIDIA's hosted Nemotron 3 Ultra endpoint as the initial reasoning model because it is explicitly positioned for agentic reasoning, planning and tool use. The architecture does not depend on NVIDIA-specific graph logic; the model sits behind a provider adapter.
+The model should not invent CareerPilot's product methodology from general pretraining. The methodology is an explicit product capability that can be versioned, tested, and eventually improved from learner outcomes.
 
-### How would this evolve to production?
+### Why keep this single-agent for now?
 
-1. Replace in-memory checkpointing with Postgres.
-2. Add authenticated learner profiles and long-term progress state.
-3. Add resume/portfolio ingestion.
-4. Add legitimate job-market data sources and role-demand evidence.
-5. Add learning-platform progress connectors.
-6. Add evaluations for roadmap quality, unnecessary tool calls, hallucination, and pathway personalization.
-7. Split responsibilities into specialized agents only when the single-agent boundary becomes a real limitation.
+The current responsibilities still fit one coherent career-coach decision boundary. Multi-agent decomposition will only be introduced when distinct responsibilities such as job-market research, evidence validation, or portfolio review require independent tools, policies, or evaluation criteria.
 
 ## Evaluation philosophy
 
-The product distinguishes **claimed**, **learned**, and **demonstrated** capability. A course completion can update learning evidence, but portfolio work or assessments should be required before marking a skill as demonstrated.
+CareerPilot treats learner statements as evidence inputs, not automatic proof of competence. Future versions will explicitly model stages such as **claimed -> learned -> practiced -> demonstrated -> validated -> market-ready**.
 
-## Deployment
+## Deployment note
 
-For a simple showcase deployment, deploy `app.py` on Streamlit Community Cloud and configure `NVIDIA_API_KEY` as a secret/environment variable. Never place the key in the repository.
-
-`langgraph.json` also exposes the graph as `career_coach`, leaving room for LangGraph-compatible deployment infrastructure later.
+V0.2 SQLite persistence is excellent for local demonstration, but Streamlit Community Cloud may use ephemeral local storage. A public multi-session deployment should move long-term state to a durable database such as Postgres before being positioned as persistent production infrastructure.
 
 ## Roadmap
 
-- **V0.1:** single assessment + tool-using agent + structured roadmap
-- **V0.2:** persistent learner profile and reassessment
+- **V0.1:** single assessment + tool-using agent + structured roadmap ✅
+- **V0.2:** persistent learner profile + transformation methodology + reassessment 🚧
 - **V0.3:** resume + portfolio evidence ingestion
-- **V0.4:** current job-market intelligence
+- **V0.4:** current job-market intelligence + stronger evaluation harness
 - **V0.5:** learning-provider integrations
 - **V1.0:** continuous evidence-based Career Operating System
