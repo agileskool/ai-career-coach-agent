@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -17,11 +18,52 @@ from career_coach.state import CareerCoachState
 from career_coach.tools import TOOLS, calculate_learning_capacity
 
 
+def _sanitize_previous_roadmap(previous_roadmap: dict | None) -> dict | None:
+    """Carry forward plan structure without treating old model prose as fresh evidence."""
+
+    if not previous_roadmap:
+        return None
+
+    gaps = []
+    for gap in previous_roadmap.get("priority_gaps", []):
+        gaps.append(
+            {
+                key: gap.get(key)
+                for key in ("competency", "target_expectation", "priority", "rationale")
+                if gap.get(key) is not None
+            }
+        )
+
+    return {
+        "target_role": previous_roadmap.get("target_role"),
+        "priority_gaps": gaps,
+        "roadmap": previous_roadmap.get("roadmap", []),
+        "first_30_days": previous_roadmap.get("first_30_days", []),
+        "evidence_plan": previous_roadmap.get("evidence_plan", []),
+        "next_best_actions": previous_roadmap.get("next_best_actions", []),
+        "assumptions": previous_roadmap.get("assumptions", []),
+    }
+
+
+def _dedupe_progress_updates(progress_updates: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Give the model unique learner-authored evidence, without timestamp noise."""
+
+    unique = []
+    seen: set[str] = set()
+    for update in progress_updates:
+        text = " ".join(update.get("update_text", "").split())
+        key = text.casefold()
+        if text and key not in seen:
+            seen.add(key)
+            unique.append({"update_text": text})
+    return unique
+
+
 def _build_context(state: CareerCoachState) -> str:
     profile = state.get("learner_profile", {})
     assessment_mode = state.get("assessment_mode", "baseline")
-    previous_roadmap = state.get("previous_roadmap")
-    progress_updates = state.get("progress_updates", [])
+    previous_roadmap = _sanitize_previous_roadmap(state.get("previous_roadmap"))
+    progress_updates = _dedupe_progress_updates(state.get("progress_updates", []))
 
     sections = [
         f"Assessment mode: {assessment_mode}",
@@ -31,19 +73,20 @@ def _build_context(state: CareerCoachState) -> str:
 
     if previous_roadmap:
         sections.append(
-            "Previous saved roadmap:\n"
+            "Previous saved PLAN STRUCTURE only. Do not treat this old model output as "
+            "new evidence:\n"
             f"{json.dumps(previous_roadmap, indent=2, ensure_ascii=False)}"
         )
 
     if progress_updates:
         sections.append(
-            "Learner progress updates since the saved plan:\n"
+            "Unique learner-authored progress evidence since the saved plan:\n"
             f"{json.dumps(progress_updates, indent=2, ensure_ascii=False)}"
         )
 
     sections.append(
         "Work toward a recommendation. Use tools where required by policy and treat "
-        "saved progress as evidence to reassess rather than as automatically validated skill."
+        "saved progress as reported evidence to reassess, not as automatically validated skill."
     )
     return "\n\n".join(sections)
 
@@ -67,8 +110,26 @@ def _route_after_agent(state: CareerCoachState) -> Literal["tools", "finalize"]:
     return "tools" if getattr(last_message, "tool_calls", None) else "finalize"
 
 
+def _remove_remaining_time_claims(text: str) -> str:
+    """V0.2 owns full-plan capacity, not inferred elapsed-time remaining capacity."""
+
+    if not text:
+        return text
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    kept = []
+    for sentence in sentences:
+        lowered = sentence.casefold()
+        has_remaining_word = "remaining" in lowered or " left" in lowered
+        has_time_unit = any(unit in lowered for unit in ("hour", "hrs", "week"))
+        if has_remaining_word and has_time_unit:
+            continue
+        kept.append(sentence)
+    return " ".join(kept).strip()
+
+
 def _enforce_deterministic_capacity(roadmap: CareerRoadmap, profile: dict) -> CareerRoadmap:
-    """Keep product-owned capacity numbers deterministic even if model prose drifts."""
+    """Keep product-owned capacity numbers and wording deterministic."""
 
     if not profile:
         return roadmap
@@ -80,6 +141,19 @@ def _enforce_deterministic_capacity(roadmap: CareerRoadmap, profile: dict) -> Ca
         }
     )
     roadmap.feasibility.available_hours = capacity["approximate_total_hours"]
+    roadmap.executive_summary = _remove_remaining_time_claims(roadmap.executive_summary)
+    if roadmap.progress_summary:
+        roadmap.progress_summary = _remove_remaining_time_claims(roadmap.progress_summary)
+    roadmap.feasibility.explanation = _remove_remaining_time_claims(
+        roadmap.feasibility.explanation
+    )
+
+    capacity_assumption = (
+        "Planned capacity uses the original stated timeline and hours per week; "
+        "V0.2 does not infer elapsed-time remaining capacity."
+    )
+    if capacity_assumption not in roadmap.assumptions:
+        roadmap.assumptions.append(capacity_assumption)
     return roadmap
 
 
