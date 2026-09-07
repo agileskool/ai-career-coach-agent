@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,19 +17,43 @@ from career_coach.state import CareerCoachState
 from career_coach.tools import TOOLS
 
 
+def _build_context(state: CareerCoachState) -> str:
+    profile = state.get("learner_profile", {})
+    assessment_mode = state.get("assessment_mode", "baseline")
+    previous_roadmap = state.get("previous_roadmap")
+    progress_updates = state.get("progress_updates", [])
+
+    sections = [
+        f"Assessment mode: {assessment_mode}",
+        "Learner profile supplied by the product UI:\n"
+        f"{json.dumps(profile, indent=2, ensure_ascii=False)}",
+    ]
+
+    if previous_roadmap:
+        sections.append(
+            "Previous saved roadmap:\n"
+            f"{json.dumps(previous_roadmap, indent=2, ensure_ascii=False)}"
+        )
+
+    if progress_updates:
+        sections.append(
+            "Learner progress updates since the saved plan:\n"
+            f"{json.dumps(progress_updates, indent=2, ensure_ascii=False)}"
+        )
+
+    sections.append(
+        "Work toward a recommendation. Use tools where required by policy and treat "
+        "saved progress as evidence to reassess rather than as automatically validated skill."
+    )
+    return "\n\n".join(sections)
+
+
 def _agent_node(state: CareerCoachState) -> dict:
     """Let the model reason over state and choose whether to call a tool."""
 
     model_with_tools = get_model().bind_tools(TOOLS)
-    profile = state.get("learner_profile", {})
-    profile_context = (
-        "Learner profile supplied by the product UI:\n"
-        f"{profile}\n\n"
-        "Work toward a recommendation. Use tools where required by your policy."
-    )
-
     response = model_with_tools.invoke(
-        [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=profile_context)]
+        [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=_build_context(state))]
         + state.get("messages", [])
     )
     return {
@@ -50,7 +75,7 @@ def _finalize_node(state: CareerCoachState) -> dict:
         [
             SystemMessage(content=SYSTEM_PROMPT),
             SystemMessage(content=FINALIZER_PROMPT),
-            HumanMessage(content=f"Learner profile: {state.get('learner_profile', {})}"),
+            HumanMessage(content=_build_context(state)),
             *state.get("messages", []),
         ]
     )
@@ -61,7 +86,7 @@ def _finalize_node(state: CareerCoachState) -> dict:
 
 
 def build_graph(checkpointer=None):
-    """Build the graph. Supplying the checkpointer makes persistence explicit/testable."""
+    """Build the graph. Supplying the checkpointer makes execution state explicit/testable."""
 
     builder = StateGraph(CareerCoachState)
     builder.add_node("career_agent", _agent_node)
@@ -80,21 +105,31 @@ def build_graph(checkpointer=None):
     return builder.compile(checkpointer=checkpointer)
 
 
-# In-memory thread persistence for V1. Replace with Postgres/SQLite for production durability.
+# Short-term graph checkpointing. Long-term learner state is stored separately in SQLite.
 career_coach_graph = build_graph(checkpointer=InMemorySaver())
 
 
-def assess_learner(profile: LearnerProfile, thread_id: str) -> dict:
-    """Public application service used by Streamlit or a future API."""
+def assess_learner(
+    profile: LearnerProfile,
+    thread_id: str,
+    *,
+    assessment_mode: Literal["baseline", "reassessment"] = "baseline",
+    previous_roadmap: dict | None = None,
+    progress_updates: list[dict[str, str]] | None = None,
+) -> dict:
+    """Run a baseline assessment or longitudinal reassessment."""
 
     return career_coach_graph.invoke(
         {
             "learner_profile": profile.model_dump(),
+            "assessment_mode": assessment_mode,
+            "previous_roadmap": previous_roadmap,
+            "progress_updates": progress_updates or [],
             "messages": [],
             "llm_calls": 0,
         },
         config={
             "configurable": {"thread_id": thread_id},
-            "recursion_limit": 12,
+            "recursion_limit": 14,
         },
     )
