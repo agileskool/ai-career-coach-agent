@@ -31,7 +31,9 @@ def _render_roadmap(result: dict, learner_id: str | None = None) -> None:
     roadmap = CareerRoadmap.model_validate(result["final_roadmap"])
 
     st.success(
-        "Reassessment complete" if roadmap.assessment_mode == "reassessment" else "Assessment complete"
+        "Reassessment complete"
+        if roadmap.assessment_mode == "reassessment"
+        else "Assessment complete"
     )
     if learner_id:
         st.caption("CareerPilot learner ID — keep this to return to the saved career state")
@@ -201,6 +203,9 @@ with returning_tab:
         _require_api_key()
         if not learner_id:
             st.error("Enter a learner ID first.")
+            st.stop()
+        if not progress_text.strip():
+            st.error("Describe what changed before running a reassessment.")
             st.stop()
         progress = ProgressUpdate(update_text=progress_text)
         try:
