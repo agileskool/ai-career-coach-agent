@@ -7,8 +7,8 @@ can be swapped later without changing the graph, tools, state, or product schema
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
+import os
 
 from langchain_openai import ChatOpenAI
 
