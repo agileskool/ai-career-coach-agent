@@ -46,7 +46,7 @@ def reassess_progress(
     progress: ProgressUpdate,
     repository: CareerRepository | None = None,
 ) -> dict[str, Any]:
-    """Persist progress, load career history, and run a longitudinal reassessment."""
+    """Run reassessment first, then atomically persist progress plus the new roadmap."""
 
     repo = _repository(repository)
     profile = repo.get_latest_profile(learner_id)
@@ -57,8 +57,28 @@ def reassess_progress(
     if previous_roadmap is None:
         raise ValueError("A baseline assessment is required before progress reassessment.")
 
-    repo.add_progress_update(learner_id, progress.update_text)
+    cleaned = progress.update_text.strip()
+    existing_update_at = repo.get_progress_update_created_at(learner_id, cleaned)
+    latest_assessment_at = repo.get_latest_assessment_created_at(learner_id)
+
+    # A matching update at or before the latest assessment has already been consumed.
+    # A newer matching update is an orphan left by an older failed reassessment and may retry.
+    if (
+        existing_update_at is not None
+        and latest_assessment_at is not None
+        and existing_update_at <= latest_assessment_at
+    ):
+        raise ValueError(
+            "This progress update is identical to one already assessed. "
+            "Add genuinely new evidence before reassessing."
+        )
+
     progress_updates = repo.list_progress_updates(learner_id)
+    if existing_update_at is None:
+        progress_updates = [
+            *progress_updates,
+            {"update_text": cleaned, "created_at": "pending"},
+        ]
 
     result = assess_learner(
         profile,
@@ -67,8 +87,12 @@ def reassess_progress(
         previous_roadmap=previous_roadmap,
         progress_updates=progress_updates,
     )
-    repo.save_assessment(
+
+    # Persist only after a successful agent run. SQLite commits the progress and its
+    # assessment together so retries cannot create half-saved longitudinal state.
+    repo.save_reassessment(
         learner_id,
+        cleaned,
         result["final_roadmap"],
         int(result.get("llm_calls", 0)),
     )
